@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+const saltRounds = parseInt(process.env.SALT_ROUNDS);
 
 require("dotenv").config();
 
@@ -38,6 +40,21 @@ async function run() {
     client.connect();
 
     const database = client.db("houseHunterDB");
+    const users = database.collection("users");
+
+    app.post("/user", async (req, res) => {
+      const user = req.body;
+      const password = user.password;
+
+      const hashedPassword = bcrypt.hashSync(password, saltRounds);
+
+      const result = await users.insertOne({
+        ...user,
+        password: hashedPassword,
+      });
+
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
