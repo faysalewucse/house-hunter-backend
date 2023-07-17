@@ -42,18 +42,37 @@ async function run() {
     const database = client.db("houseHunterDB");
     const users = database.collection("users");
 
-    app.post("/user", async (req, res) => {
-      const user = req.body;
-      const password = user.password;
+    // Check if the user email is already in use
+    const checkUserExistence = async (email) => {
+      const user = await users.findOne({ email });
 
-      const hashedPassword = bcrypt.hashSync(password, saltRounds);
+      if (user) {
+        return true;
+      }
 
-      const result = await users.insertOne({
-        ...user,
-        password: hashedPassword,
-      });
+      return false;
+    };
 
-      res.send(result);
+    app.post("/user", async (req, res, next) => {
+      try {
+        const user = req.body;
+        const password = user.password;
+
+        const hashedPassword = bcrypt.hashSync(password, saltRounds);
+
+        if (checkUserExistence() === true) {
+          throw new Error("Email already exists");
+        }
+
+        const result = await users.insertOne({
+          ...user,
+          password: hashedPassword,
+        });
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: error.message });
+      }
     });
 
     // Send a ping to confirm a successful connection
@@ -64,6 +83,7 @@ async function run() {
     // await client.close();
   }
 }
+
 run().catch(console.dir);
 
 app.listen(port, () => {
