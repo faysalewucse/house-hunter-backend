@@ -53,7 +53,30 @@ async function run() {
       return false;
     };
 
-    app.post("/user", async (req, res, next) => {
+    app.post("/login", async (req, res) => {
+      const { email, password } = req.body;
+
+      try {
+        const user = await users.findOne({ email: email });
+
+        if (!user) {
+          throw new Error("User not found");
+        }
+
+        const matchPassword = bcrypt.compareSync(password, user?.password);
+
+        if (!matchPassword) {
+          throw new Error("Password is incorrect");
+        }
+
+        res.send(user);
+      } catch (error) {
+        console.log(error.message);
+        res.status(500).send({ message: error.message });
+      }
+    });
+
+    app.post("/register", async (req, res) => {
       try {
         const user = req.body;
         const password = user.password;
