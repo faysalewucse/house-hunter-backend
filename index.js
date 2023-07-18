@@ -17,8 +17,12 @@ app.get("/", (req, res) => {
 });
 
 app.post("/jwt", (req, res) => {
-  const user = req.body;
-  const token = jwt.sign(user, process.env.JWT_SECRET_KEY, { expiresIn: "1h" });
+  const email = req.body;
+
+  const token = jwt.sign(email, process.env.JWT_SECRET_KEY, {
+    expiresIn: "1h",
+  });
+
   res.send({ token });
 });
 
@@ -43,14 +47,17 @@ async function run() {
     const users = database.collection("users");
 
     // Check if the user email is already in use
-    const checkUserExistence = async (email) => {
+    const checkUserExistence = async (req, res, next) => {
+      const { email } = req.body;
       const user = await users.findOne({ email });
 
       if (user) {
-        return true;
+        return res
+          .status(401)
+          .send({ error: true, message: "E-mail already in use" });
       }
 
-      return false;
+      next();
     };
 
     app.post("/login", async (req, res) => {
@@ -76,16 +83,12 @@ async function run() {
       }
     });
 
-    app.post("/register", async (req, res) => {
+    app.post("/register", checkUserExistence, async (req, res) => {
       try {
         const user = req.body;
         const password = user.password;
 
         const hashedPassword = bcrypt.hashSync(password, saltRounds);
-
-        if (checkUserExistence() === true) {
-          throw new Error("Email already exists");
-        }
 
         const result = await users.insertOne({
           ...user,
@@ -96,6 +99,12 @@ async function run() {
       } catch (error) {
         res.status(500).send({ message: error.message });
       }
+    });
+
+    app.get("/users/:userEmail", async (req, res) => {
+      const email = req.params.userEmail;
+      const result = await users.findOne({ email: email });
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection
