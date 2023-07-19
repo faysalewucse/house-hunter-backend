@@ -128,6 +128,30 @@ async function run() {
       }
     });
 
+    app.get("/houses", async (req, res) => {
+      try {
+        const page = parseInt(req.query.page) || 1;
+        const city = req.query.city || null;
+
+        let query = {};
+
+        if (city) {
+          query.city = city;
+        }
+
+        const limit = 10; // Set the desired limit per page
+
+        const skip = (page - 1) * limit;
+        const totalHouse = await houses.countDocuments(query);
+        const cursor = houses.find(query).skip(skip).limit(limit);
+        const result = await cursor.toArray();
+
+        res.send({ data: result, totalHouse });
+      } catch (error) {
+        res.status(500).send({ message: error.message });
+      }
+    });
+
     app.get(
       "/houses/:houseOwner",
       verifyJWT,
