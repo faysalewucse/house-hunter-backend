@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const { verifyJWT } = require("./middleware/verifyJWT");
+
 const saltRounds = parseInt(process.env.SALT_ROUNDS);
 
 require("dotenv").config();
@@ -45,6 +47,19 @@ async function run() {
 
     const database = client.db("houseHunterDB");
     const users = database.collection("users");
+    const houses = database.collection("houses");
+
+    const verifyHouseOwner = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await users.findOne(query);
+      if (user?.role !== "houseOwner") {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
 
     // Check if the user email is already in use
     const checkUserExistence = async (req, res, next) => {
@@ -101,9 +116,51 @@ async function run() {
       }
     });
 
+    app.post("/house", verifyJWT, verifyHouseOwner, async (req, res) => {
+      try {
+        const house = req.body;
+
+        const result = await houses.insertOne(house);
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: error.message });
+      }
+    });
+
+    app.get(
+      "/houses/:houseOwner",
+      verifyJWT,
+      verifyHouseOwner,
+      async (req, res) => {
+        try {
+          const houseOwner = req.params.houseOwner;
+
+          const cursor = houses.find({ houseOwner });
+          const result = await cursor.toArray();
+
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({ message: error.message });
+        }
+      }
+    );
+
     app.get("/users/:userEmail", async (req, res) => {
       const email = req.params.userEmail;
       const result = await users.findOne({ email: email });
+      res.send(result);
+    });
+
+    app.patch("/houses/:houseId", verifyJWT, verifyHouseOwner, (req, res) => {
+      const houseId = req.params.houseId;
+      const newData = req.body;
+
+      const result = houses.updateOne(
+        { _id: new ObjectId(houseId) },
+        { $set: newData }
+      );
+
       res.send(result);
     });
 
