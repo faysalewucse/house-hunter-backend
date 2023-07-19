@@ -48,12 +48,25 @@ async function run() {
     const database = client.db("houseHunterDB");
     const users = database.collection("users");
     const houses = database.collection("houses");
+    const bookedHouses = database.collection("bookedHouses");
 
     const verifyHouseOwner = async (req, res, next) => {
       const email = req.decoded.email;
       const query = { email: email };
       const user = await users.findOne(query);
       if (user?.role !== "houseOwner") {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
+
+    const verifyHouseRenter = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await users.findOne(query);
+      if (user?.role !== "houseRenter") {
         return res
           .status(403)
           .send({ error: true, message: "forbidden message" });
@@ -184,10 +197,29 @@ async function run() {
         try {
           const houseOwner = req.params.houseOwner;
 
+          const totalHouse = await houses.countDocuments();
           const cursor = houses.find({ houseOwner });
           const result = await cursor.toArray();
 
-          res.send(result);
+          res.send({ houses: result, totalHouse });
+        } catch (error) {
+          res.status(500).send({ message: error.message });
+        }
+      }
+    );
+
+    app.get(
+      "/bookings/:houseRenter",
+      verifyJWT,
+      verifyHouseRenter,
+      async (req, res) => {
+        try {
+          const houseRenter = req.params.houseRenter;
+          const totalBooked = await bookedHouses.countDocuments();
+          const cursor = bookedHouses.find({ houseRenter });
+          const result = await cursor.toArray();
+
+          res.send({ booked: result, totalBooked });
         } catch (error) {
           res.status(500).send({ message: error.message });
         }
