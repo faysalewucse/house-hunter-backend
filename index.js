@@ -164,6 +164,23 @@ async function run() {
       res.send(result);
     });
 
+    app.delete(
+      "/houses/:houseId",
+      verifyJWT,
+      verifyHouseOwner,
+      async (req, res) => {
+        const result = await houses.deleteOne({
+          _id: new ObjectId(req.params.houseId),
+        });
+
+        if (result.deletedCount === 1) {
+          res.send(result);
+        } else {
+          res.send({ error: "House not found." });
+        }
+      }
+    );
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Successfully connected to MongoDB!");
