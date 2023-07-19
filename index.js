@@ -141,6 +141,18 @@ async function run() {
       }
     });
 
+    app.post("/booking", verifyJWT, verifyHouseRenter, async (req, res) => {
+      try {
+        const bookingInfo = req.body;
+
+        const result = await bookedHouses.insertOne(bookingInfo);
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: error.message });
+      }
+    });
+
     app.get("/houses", async (req, res) => {
       try {
         const page = parseInt(req.query.page) || 1;
