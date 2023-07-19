@@ -132,11 +132,35 @@ async function run() {
       try {
         const page = parseInt(req.query.page) || 1;
         const city = req.query.city || null;
+        const bedrooms = req.query.bedrooms || null;
+        const bathrooms = req.query.bathrooms || null;
+        const roomSize = req.query.roomSize || null;
+        const availabilityDate = req.query.availabilityDate || null;
+        const rentPerMonth = req.query.rentPerMonth || null;
+        const houseName = req.query.houseName || null;
 
         let query = {};
 
         if (city) {
           query.city = city;
+        }
+        if (bedrooms) {
+          query.bedrooms = bedrooms;
+        }
+        if (bathrooms) {
+          query.bathrooms = bathrooms;
+        }
+        if (roomSize) {
+          query.roomSize = roomSize;
+        }
+        if (availabilityDate) {
+          query.availabilityDate = availabilityDate;
+        }
+        if (rentPerMonth) {
+          query.rentPerMonth = { $lte: parseInt(rentPerMonth) };
+        }
+        if (houseName) {
+          query.houseName = { $regex: houseName, $options: "i" };
         }
 
         const limit = 10; // Set the desired limit per page
