@@ -66,6 +66,7 @@ async function run() {
       const email = req.decoded.email;
       const query = { email: email };
       const user = await users.findOne(query);
+
       if (user?.role !== "houseRenter") {
         return res
           .status(403)
@@ -106,7 +107,6 @@ async function run() {
 
         res.send(user);
       } catch (error) {
-        console.log(error.message);
         res.status(500).send({ message: error.message });
       }
     });
@@ -144,7 +144,6 @@ async function run() {
     app.post("/booking", verifyJWT, verifyHouseRenter, async (req, res) => {
       try {
         const bookingInfo = req.body;
-
         const result = await bookedHouses.insertOne(bookingInfo);
 
         res.send(result);
@@ -209,7 +208,9 @@ async function run() {
         try {
           const houseOwner = req.params.houseOwner;
 
-          const totalHouse = await houses.countDocuments();
+          const totalHouse = await houses.countDocuments({
+            houseOwner: houseOwner,
+          });
           const cursor = houses.find({ houseOwner });
           const result = await cursor.toArray();
 
@@ -227,8 +228,29 @@ async function run() {
       async (req, res) => {
         try {
           const houseRenter = req.params.houseRenter;
-          const totalBooked = await bookedHouses.countDocuments();
-          const cursor = bookedHouses.find({ houseRenter });
+          const totalBooked = await bookedHouses.countDocuments({
+            email: houseRenter,
+          });
+          const cursor = bookedHouses.aggregate([
+            {
+              $match: { email: houseRenter },
+            },
+            {
+              $lookup: {
+                from: "houses",
+                let: { houseId: { $toObjectId: "$houseId" } },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: { $eq: ["$_id", "$$houseId"] },
+                    },
+                  },
+                ],
+                as: "houseInfo",
+              },
+            },
+          ]);
+
           const result = await cursor.toArray();
 
           res.send({ booked: result, totalBooked });
@@ -269,6 +291,23 @@ async function run() {
           res.send(result);
         } else {
           res.send({ error: "House not found." });
+        }
+      }
+    );
+
+    app.delete(
+      "/bookings/:bookId",
+      verifyJWT,
+      verifyHouseRenter,
+      async (req, res) => {
+        const result = await bookedHouses.deleteOne({
+          _id: new ObjectId(req.params.bookId),
+        });
+
+        if (result.deletedCount === 1) {
+          res.send(result);
+        } else {
+          res.send({ error: "Booking not found." });
         }
       }
     );
